@@ -16,32 +16,29 @@ class _HomePageState extends State<HomePage> {
   DatabaseProvider database = DatabaseProvider();
 
   // Lista que receberá todos os contatos que serão exibidos na tela
-  List<Contact> contacts = List();
+  List<Contact> contacts;
 
+  // Guarda número de registros da tabela
+  int count = 0;
 
-  // Sobrescrita do método initState de State para que quando o estado for iniciado
-  // junto com a tela, seja feita a busca de todos os contatos cadastrados através
-  // do método _getAllContacts, preenchendo a lista
-  @override
-  void initState() {
-    super.initState();
-
-    _getAllContacts();
-  }
 
   void _getAllContacts(){
-    
-    // Depois de pronto ver se as duas formas funcionam
-    /*
-    var list = database.getAllContacts();
-    setState(() {
-      contacts = list as List<Contact>;
-    }); */
+    final dbFuture = database.initDb();
 
+    dbFuture.then((result) {
+      final contactsFuture = database.getAllContacts();
 
-    database.getAllContacts().then((list) {
-      setState(() {
-        contacts = list;
+      contactsFuture.then((result) {
+        List<Contact> contactsList = List<Contact>();
+        count = result.length;
+
+        for (int i=0; i<count; i++){
+          contactsList.add(Contact.fromObject(result[i]));
+        }
+
+        setState(() {
+          contacts = contactsList;
+        });
       });
     });
   }
@@ -50,6 +47,13 @@ class _HomePageState extends State<HomePage> {
   // Construção da tela
   @override
   Widget build(BuildContext context) {
+
+    if (contacts == null){
+      contacts = List<Contact>();
+    }
+
+    _getAllContacts();
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Agenda Flutter'),
@@ -59,24 +63,24 @@ class _HomePageState extends State<HomePage> {
 
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
-        onPressed: (){ _showContactPage(); },
+        onPressed: (){ _showContactPage(Contact('','','')); },
         child: Icon(Icons.add),
         backgroundColor: Colors.blue,
       ),
 
       body: ListView.builder(
         padding: EdgeInsets.all(10.0),  
-        itemCount: contacts.length,
-        itemBuilder: (context, index){
+        itemCount: count,
+        itemBuilder: (BuildContext context, int index){
           return _contactCard(context, index);
         }
-      ),
+      )
     );
   }
 
 
   // Mostra os dados de um contato dentro de um card
-  Widget _contactCard(BuildContext context, index){
+  Widget _contactCard(BuildContext context, int index){
     return GestureDetector(
       child: Card(
         child: Padding(
@@ -115,7 +119,7 @@ class _HomePageState extends State<HomePage> {
                     ),
 
                   ],
-                ),              
+                ),
               ),
             ],
           ),
@@ -150,7 +154,7 @@ class _HomePageState extends State<HomePage> {
 
                   _optionButton(context, 'Editar', (){
                       Navigator.pop(context);
-                      _showContactPage(contact: contacts[index]);
+                      _showContactPage(this.contacts[index]);
                     },
                   ),
 
@@ -185,24 +189,14 @@ class _HomePageState extends State<HomePage> {
         ),
       ),    
     );
-  }
+  } 
 
 
-  // Método que abre a página para cadastro ou edição de um contato
-  void _showContactPage({Contact contact}) async{
-    final recContact = await Navigator.push(
+  // Método que abre a página para edição de um contato
+  void _showContactPage(Contact contact) async{
+    await Navigator.push(
       context, 
-      MaterialPageRoute(builder: (context) => ContactPage(contact: contact))
+      MaterialPageRoute(builder: (context) => ContactPage(contact))
     );
-
-    if(recContact != null){
-      if(contact != null){
-        await database.updateContact(recContact);
-      }else{
-        await database.saveContact(recContact);
-      }
-    }
-
-    _getAllContacts();
   }
 }

@@ -10,11 +10,11 @@ final String phoneColumn = 'phoneColumn';
 
 
 class DatabaseProvider {
-  DatabaseProvider.internal();
-  static final DatabaseProvider _instance = DatabaseProvider.internal();
+  DatabaseProvider._internal();
+  static final DatabaseProvider _instance = DatabaseProvider._internal();
   factory DatabaseProvider() => _instance;
 
-  Database _db;
+  static Database _db;
 
   // Se o BD existir retona ele, senão ocorre sua inicialização 
   Future<Database> get db async {
@@ -47,10 +47,10 @@ class DatabaseProvider {
 
 
   // Método que salva um contato no banco de dados
-  Future<Contact> saveContact(Contact contact) async {
+  Future<int> saveContact(Contact contact) async {
     Database dbContact = await this.db;
     contact.id = await dbContact.insert(contactTable, contact.toMap());
-    return contact;
+    return contact.id;
   }
 
 
@@ -66,7 +66,7 @@ class DatabaseProvider {
 
     // Verifica se algum resultado foi obtido da busca pelo id
     if (maps.length > 0 ) {
-      return Contact.fromMap(maps.first);
+      return Contact.fromObject(maps.first);
     } else {
       return null;
     }
@@ -100,14 +100,7 @@ class DatabaseProvider {
   Future<List> getAllContacts() async {
     Database dbContact = await this.db;
     List listMap = await dbContact.rawQuery('SELECT * FROM $contactTable');
-
-    // Analisar a necessidade deste trecho de código
-    // seu funcionamento com e sem esse trecho
-    List<Contact> listContact = List();
-    for (Map m in listMap) {
-      listContact.add(Contact.fromMap(m));
-    }
-    return listContact;
+    return listMap;
   } 
 } 
 
@@ -118,28 +111,30 @@ class Contact {
   String email;
   String phone;
 
-  Contact();
+  Contact(this.name, this.email, this.phone);
+
+  Contact.whithId(this.id, this.name, this.email, this.phone);
 
   // Construtor que converte objetos de mapa (JSON) para objetos de Contato
-  Contact.fromMap(Map map) {
-    id = map[idColumn];
-    name = map[nameColumn];
-    email = map[emailColumn];
-    phone = map[phoneColumn];
+  Contact.fromObject(dynamic o) {
+    this.id = o['idColumn'];
+    this.name = o['nameColumn'];
+    this.email = o['emailColumn'];
+    this.phone = o['phoneColumn'];
   }
 
   // Método que transforma o objeto do contato em Mapa (JSON) para armazenar no banco de dados
-  Map toMap() {
-    Map<String, dynamic> map = {
-      nameColumn: name,
-      emailColumn: email,
-      phoneColumn: phone,
-    };
+    Map<String, dynamic> toMap() {
+      var map = Map<String, dynamic>();
+      map['nameColumn'] = name;
+      map['emailColumn'] = email;
+      map['phoneColumn'] = phone;
 
     // O id pode ser nulo caso o registro esteja sendo criado já que é o banco de dados que
-    // atribui o ID ao registro no ato de salvar. Por isso de vemos testar antes de atribuir
+    // faz a atribuição ao registro no ato de salvar. Por isso deve-se fazer esta verificação
+    // antes de atribuir
     if (id != null) {
-      map["id"] = id;
+      map["idColumn"] = id;
     }
     return map;
   }
